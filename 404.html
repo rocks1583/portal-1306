@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>13 06 Constructora — Redirigiendo</title>
+  <script>
+    (function() {
+      var segs = window.location.pathname.split('/');
+      var repoIdx = segs.indexOf('portal-1306');
+      var base = repoIdx !== -1 ? segs.slice(0, repoIdx + 1).join('/') + '/' : '/';
+      var rel = repoIdx !== -1 ? segs.slice(repoIdx + 1).join('/') : '';
+      if (rel && rel !== 'index.html') {
+        try { sessionStorage.setItem('1306_destino_post_vault', './' + rel + window.location.search + window.location.hash); } catch (e) {}
+      }
+      window.location.replace(base + 'index.html' + window.location.hash);
+    })();
+  </script>
+</head>
+<body></body>
+</html>

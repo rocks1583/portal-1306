@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow, noarchive" />
+  <title>13 06 Constructora — Bóveda Corporativa Cifrada</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      color: #f8fafc;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .vault-card {
+      background: #ffffff;
+      color: #0f172a;
+      max-width: 440px;
+      width: 100%;
+      border-radius: 16px;
+      padding: 28px 24px;
+      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.4);
+      border-top: 5px solid #d97706;
+      text-align: center;
+    }
+    h1 { font-size: 1.15rem; font-weight: 800; margin-bottom: 8px; color: #0f172a; }
+    p { font-size: 0.85rem; color: #475569; line-height: 1.45; margin-bottom: 16px; }
+    input {
+      width: 100%;
+      padding: 11px 12px;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 9px;
+      font-family: Consolas, monospace;
+      font-size: 0.84rem;
+      margin-bottom: 12px;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #0f2439;
+      color: #fff;
+      font-weight: 800;
+      border: none;
+      border-radius: 9px;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    .spinner {
+      width: 34px; height: 34px;
+      border: 4px solid #e2e8f0;
+      border-top-color: #d97706;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 14px auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .err { color: #991b1b; background: #fee2e2; padding: 10px; border-radius: 8px; font-size: 0.8rem; margin-top: 10px; display: none; }
+  </style>
+</head>
+<body>
+  <div class="vault-card" id="boxCargando">
+    <div class="spinner"></div>
+    <h1>🔐 Verificando Bóveda AES-256-GCM</h1>
+    <p>Preparando canal cifrado de <strong>13 06 Constructora</strong> para escritorio y dispositivos móviles...</p>
+  </div>
+
+  <div class="vault-card" id="boxLlaveManual" style="display:none;">
+    <h1>🛡️ Acceso Corporativo Cifrado 13 06</h1>
+    <p>Este servidor no almacena información en texto plano. Abre este portal desde el <strong>enlace oficial completo</strong> proporcionado por Dirección General o pega tu llave de acceso:</p>
+    <input type="password" id="inputKeyVault" placeholder="Pega la llave o enlace corporativo..." />
+    <button type="button" onclick="activarConInputManual()">🔓 Desbloquear Portal de Acceso</button>
+    <div id="msgErrVault" class="err"></div>
+  </div>
+
+  <script>
+    const STORAGE_VAULT_KEY = '1306_vault_k_b64';
+
+    function extraerLlave(str) {
+      if (!str) return '';
+      const m = String(str).match(/(?:[#?&]k=)([A-Za-z0-9_-]{30,})/);
+      if (m) return m[1];
+      const limpio = String(str).trim();
+      if (/^[A-Za-z0-9_-]{40,46}$/.test(limpio)) return limpio;
+      return '';
+    }
+
+    async function enviarLlaveASw(sw, keyB64) {
+      return new Promise((resolve) => {
+        const ch = new MessageChannel();
+        ch.port1.onmessage = (e) => resolve(e.data || { ok: false });
+        sw.postMessage({ type: 'SET_KEY', key: keyB64 }, [ch.port2]);
+      });
+    }
+
+    async function verificarDescifradoPrueba(keyB64) {
+      const pad = '='.repeat((4 - (keyB64.length % 4)) % 4);
+      const b64 = (keyB64 + pad).replace(/-/g, '+').replace(/_/g, '/');
+      const bin = atob(b64);
+      const raw = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) raw[i] = bin.charCodeAt(i);
+      const ck = await crypto.subtle.importKey('raw', raw, { name: 'AES-GCM' }, false, ['decrypt']);
+      const r = await fetch('./check.enc', { cache: 'no-cache' });
+      const buf = new Uint8Array(await r.arrayBuffer());
+      const dec = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: buf.slice(1, 13) }, ck, buf.slice(13));
+      const txt = new TextDecoder().decode(dec);
+      return txt === '1306_VAULT_OK';
+    }
+
+    async function inicializarBoveda(keyCandidata) {
+      try {
+        const okKey = await verificarDescifradoPrueba(keyCandidata);
+        if (!okKey) throw new Error('Llave inválida');
+        localStorage.setItem(STORAGE_VAULT_KEY, keyCandidata);
+        if (window.location.hash) {
+          history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
+        const reg = await navigator.serviceWorker.register('./sw.js', { scope: './' });
+        await navigator.serviceWorker.ready;
+        const targetSw = reg.active || navigator.serviceWorker.controller;
+        if (targetSw && targetSw.state !== 'activated') {
+          await new Promise((res) => {
+            targetSw.addEventListener('statechange', () => {
+              if (targetSw.state === 'activated') res();
+            });
+            setTimeout(res, 600);
+          });
+        }
+        if (targetSw) {
+          await enviarLlaveASw(targetSw, keyCandidata);
+        }
+        const destinoPend = sessionStorage.getItem('1306_destino_post_vault') || './Portal_1306.html';
+        sessionStorage.removeItem('1306_destino_post_vault');
+        window.location.replace(destinoPend);
+      } catch (err) {
+        localStorage.removeItem(STORAGE_VAULT_KEY);
+        document.getElementById('boxCargando').style.display = 'none';
+        document.getElementById('boxLlaveManual').style.display = 'block';
+        if (keyCandidata) {
+          const el = document.getElementById('msgErrVault');
+          el.style.display = 'block';
+          el.textContent = '❌ La llave proporcionada no coincide con la bóveda activa de 13 06 Constructora.';
+        }
+      }
+    }
+
+    function activarConInputManual() {
+      const val = document.getElementById('inputKeyVault').value;
+      const k = extraerLlave(val);
+      if (!k) {
+        const el = document.getElementById('msgErrVault');
+        el.style.display = 'block';
+        el.textContent = '⚠️ Pega el enlace completo o la llave corporativa.';
+        return;
+      }
+      document.getElementById('boxLlaveManual').style.display = 'none';
+      document.getElementById('boxCargando').style.display = 'block';
+      inicializarBoveda(k);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const kHash = extraerLlave(window.location.hash) || extraerLlave(window.location.search);
+      const kSaved = localStorage.getItem(STORAGE_VAULT_KEY) || '';
+      const kFinal = kHash || kSaved;
+      if (!kFinal) {
+        document.getElementById('boxCargando').style.display = 'none';
+        document.getElementById('boxLlaveManual').style.display = 'block';
+        return;
+      }
+      inicializarBoveda(kFinal);
+    });
+  </script>
+</body>
+</html>
